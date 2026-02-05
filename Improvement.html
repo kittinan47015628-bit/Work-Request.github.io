@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ระบบ Work Request ออนไลน์</title>
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+<style>
+body {
+  margin: 0;
+  padding: 0;
+}
+/* ปรับความสูงของแถวให้เท่ากับ 1 row และให้ตัวอักษรปรับขนาดอัตโนมัติ */
+.table tbody tr {
+  height: 40px; /* กำหนดความสูงของแถว */
+  line-height: 40px; /* ให้ข้อความอยู่ตรงกลางแนวตั้ง */
+  font-size: 14px; /* ตัวอย่างปรับขนาดตัวอักษรให้เหมาะสม */
+}
+.header {
+  background-color: #007bff;
+  color: white;
+  padding: 15px;
+}
+.btn-manage {
+  font-size: 18px;
+}
+.search-box {
+  width: 200px;
+}
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+/* ปรับให้ตัวอักษรในแถวในตารางเป็นอัตโนมัติให้พอดีกับความสูง */
+.table th, .table td {
+  font-size: 12px; /* ปรับขนาดตัวอักษรตามต้องการ */
+  padding: 2px; /* ลด padding เพื่อให้ตัวอักษรพอดี */
+  vertical-align: middle; /* แนวตั้งกลาง */
+}
+</style>
+</head>
+<body>
+<!-- Header -->
+<div class="header d-flex justify-content-between align-items-center">
+<h4>Work Request Online</h4>
+<button class="btn btn-warning btn-sm btn-manage" data-toggle="modal" data-target="#workRequestModal">Work Request</button>
+</div>
+
+<!-- เนื้อหา -->
+<div class="container-fluid p-3" style="background-color:#f8f9fa;">
+  <!-- หัวข้อและปุ่ม -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+    <div>
+      <h5>รายการแจ้งซ่อม</h5>
+      <div class="mt-2">
+        <button class="btn btn-primary btn-sm mr-1" id="btnCount">จำนวนงาน</button>
+        <button class="btn btn-primary btn-sm mr-1" id="btnPending">รอดำเนินการ</button>
+        <button class="btn btn-primary btn-sm mr-1" id="btnInProgress">กำลังดำเนินการ</button>
+        <button class="btn btn-warning btn-sm mr-1" id="btnExternal">ส่งงานนอก</button>
+        <button class="btn btn-success btn-sm mr-1" id="btnCompleted">ดำเนินการเสร็จแล้ว</button>
+        <button class="btn btn-danger btn-sm mr-1" id="btnCancel">ยกเลิก</button>
+      </div>
+    </div>
+    <!-- ค้นหา -->
+    <div class="d-flex align-items-center mt-2">
+      <input type="text" class="form-control form-control-sm search-box" placeholder="ค้นหา..." id="searchInput"/>
+      <button class="btn btn-secondary btn-sm ml-3" id="exportCSV">ส่งออก CSV</button>
+    </div>
+  </div>
+
+  <!-- ตารางข้อมูล -->
+  <div class="table-container">
+    <table class="table table-bordered table-hover table-striped" style="min-width:1000px;">
+      <thead class="thead-light">
+        <tr>
+          <th>ID</th>
+          <th>เวลา</th>
+          <th>วันที่</th>
+          <th>ชื่อผู้แจ้ง</th>
+          <th>หน่วยงาน</th>
+          <th>ประเภทงาน</th>
+          <th>เครื่องจักร</th>
+          <th>รายละเอียด</th>
+          <th>เลขเครื่องจักร</th>
+          <th>สถานะ</th>
+          <th>ผู้รับงาน</th>
+          <th>จัดการข้อมูล</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <nav aria-label="Page navigation example" class="mt-3">
+    <ul class="pagination justify-content-center">
+      <li class="page-item disabled"><a class="page-link" href="#">« ก่อนหน้า</a></li>
+      <li class="page-item active"><a class="page-link" href="#">1</a></li>
+      <li class="page-item"><a class="page-link" href="#">2</a></li>
+      <li class="page-item"><a class="page-link" href="#">ถัดไป »</a></li>
+    </ul>
+  </nav>
+</div>
+
+<!-- Modal สำหรับ Work Request -->
+<div class="modal fade" id="workRequestModal" tabindex="-1" role="dialog" aria-labelledby="workRequestModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="workRequestModalLabel">ฟอร์มแจ้งซ่อมใหม่</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="ปิด">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="workRequestForm">
+          <div class="form-group">
+            <label for="autoId">ID Number</label>
+            <input type="text" class="form-control" id="autoId" name="autoId" readonly />
+          </div>
+          <div class="form-group">
+            <label for="time">เวลา</label>
+            <input type="time" class="form-control" id="time" name="time" required>
+          </div>
+          <div class="form-group">
+            <label for="date">วันที่</label>
+            <input type="date" class="form-control" id="date" name="date" required>
+          </div>
+          <div class="form-group">
+            <label for="name">Name</label>
+            <select class="form-control" id="name" required>
+              <option value="">   </option>
+              <option value="นายศราวุธ สันทัดสิน">นายศราวุธ สันทัดสิน</option>
+              <option value="นายราเมธ สัพโส">นายราเมธ สัพโส</option>
+              <option value="นายอิทธิพล หามนตรี">นายอิทธิพล หามนตรี</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="department">หน่วยงาน</label>
+            <select class="form-control" id="department" required>
+              <option value="">   </option>
+              <option value="MC1-B-Setting">MC1-B-Setting</option>
+              <option value="MC1-B-QC">MC1-B-QC</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="category">ประเภท</label>
+            <select class="form-control" id="category" required>
+              <option value="">   </option>
+              <option value="Breakdown Maintenance">Breakdown Maintenance : งานซ่อมเครื่องจักร</option>
+              <option value="Repair Work">Repair Work : งานซ่อมอุปกรณ์และระบบต่างๆ</option>
+              <option value="Improvement">Improvement : งานปรับปรุงแก้ไขเครื่องจักร,อุปกรณ์</option>
+              <option value="Other">Other (อื่นๆ)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="machine">เครื่องจักร</label>
+            <select class="form-control" id="machine" required>
+              <option value="">   </option>
+              <option value="injection">Injection</option>
+              <option value="hopper">Hopper</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="detail">รายละเอียดปัญหา</label>
+            <textarea class="form-control" id="detail" rows="3" placeholder="รายละเอียดปัญหา"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="number">เลขเครื่องจักร</label>
+            <input type="text" class="form-control" id="number" placeholder="กรอกเลขเครื่องจักรเอง">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">ยกเลิก</button>
+        <button type="button" class="btn btn-primary" id="saveWorkRequest">บันทึกข้อมูล</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal สำหรับ จัดการงาน -->
+<div class="modal fade" id="manageWorkModal" tabindex="-1" role="dialog" aria-labelledby="manageWorkModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="manageWorkModalLabel">จัดการงาน</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="ปิด">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>กรุณาเลือกสถานะของงาน:</p>
+        <div class="btn-group-vertical w-100" id="statusOptions">
+          <button class="btn btn-info mb-2" data-status="กำลังดำเนินการ">กำลังดำเนินการ</button>
+          <button class="btn btn-success mb-2" data-status="ดำเนินงานเสร็จแล้ว">ดำเนินงานเสร็จแล้ว</button>
+          <button class="btn btn-warning mb-2" data-status="ส่งงานนอก">ส่งงานนอก</button>
+          <button class="btn btn-secondary mb-2" data-status="ยกเลิก">ยกเลิก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ฟังก์ชันสร้าง ID อัตโนมัติ
+function generateAutoId() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const newId = `${year}-${month}-${day}-${hours}:${minutes}`;
+  $('#autoId').val(newId);
+}
+
+// โหลดข้อมูลจาก LocalStorage และแสดงในตาราง
+function loadTableData() {
+  const data = JSON.parse(localStorage.getItem('workRequests')) || [];
+  $('#tableBody').empty();
+  data.forEach((item, index) => {
+    const row = `
+      <tr data-index="${index}">
+        <td>${item.id}</td>
+        <td>${item.time}</td>
+        <td>${item.date}</td>
+        <td>${item.name}</td>
+        <td>${item.department}</td>
+        <td>${item.category}</td>
+        <td>${item.machine}</td>
+        <td>${item.detail}</td>
+        <td>${item.number}</td>
+        <td>${item.status || 'รอดำเนินการ'}</td>
+        <td>${item.receiver || ''}</td>
+        <td>
+          <button class="btn btn-warning btn-sm btn-manage-job">จัดการงาน</button>
+          <button class="btn btn-danger btn-sm btn-delete">ลบ</button>
+        </td>
+      </tr>`;
+    $('#tableBody').append(row);
+  });
+}
+
+// เมื่อเปิด modal ให้สร้าง ID ใหม่
+$('#workRequestModal').on('show.bs.modal', function () {
+  generateAutoId();
+});
+
+// บันทึกข้อมูลใหม่
+$('#saveWorkRequest').on('click', function() {
+  const form = $('#workRequestForm')[0];
+  const id = $('#autoId').val();
+  const time = $('#time').val();
+  const date = $('#date').val();
+  const name = $('#name').val();
+  const department = $('#department').val();
+  const category = $('#category').val();
+  const machine = $('#machine').val();
+  const detail = $('#detail').val();
+  const number = $('#number').val();
+
+  const newEntry = {
+    id,
+    time,
+    date,
+    name,
+    department,
+    category,
+    machine,
+    detail,
+    number,
+    status: "รอดำเนินการ" // สถานะเริ่มต้น
+  };
+
+  const data = JSON.parse(localStorage.getItem('workRequests')) || [];
+  data.push(newEntry);
+  localStorage.setItem('workRequests', JSON.stringify(data));
+
+  loadTableData();
+  $('#workRequestModal').modal('hide');
+  form.reset();
+});
+
+// ลบข้อมูล
+$(document).on('click', '.btn-delete', function() {
+  const index = $(this).closest('tr').data('index');
+  let data = JSON.parse(localStorage.getItem('workRequests')) || [];
+  if (index !== undefined) {
+    data.splice(index, 1);
+    localStorage.setItem('workRequests', JSON.stringify(data));
+    loadTableData();
+  }
+});
+
+// จัดการงาน (เปิด modal)
+$(document).on('click', '.btn-manage-job', function() {
+  const row = $(this).closest('tr');
+  const index = row.data('index');
+  $('#manageWorkModal').data('index', index);
+  $('#manageWorkModal').modal('show');
+});
+
+// เลือกสถานะใน modal จัดการงาน
+$(document).on('click', '#statusOptions button', function() {
+  const status = $(this).data('status');
+  const index = $('#manageWorkModal').data('index');
+  const data = JSON.parse(localStorage.getItem('workRequests')) || [];
+  if (index !== undefined && data[index]) {
+    data[index].status = status;
+    // ถ้าสถานะเป็น "ส่งงานนอก" อาจต้องมีการเพิ่มเติมการแจ้งเตือนหรือการจัดการอื่นๆ
+    localStorage.setItem('workRequests', JSON.stringify(data));
+    loadTableData();
+    $('#manageWorkModal').modal('hide');
+  }
+});
+
+// ค้นหา
+$('#searchInput').on('keyup', function() {
+  const value = $(this).val().toLowerCase();
+  $('#tableBody tr').filter(function() {
+    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+  });
+});
+
+// ส่งออก CSV
+$('#exportCSV').on('click', async function() {
+  const data = JSON.parse(localStorage.getItem('workRequests')) || [];
+  if (data.length === 0) {
+    alert('ไม่มีข้อมูลที่จะส่งออก');
+    return;
+  }
+  const headers = ['ID', 'TIME', 'DATE', 'Informant', 'Section', 'Type', 'Machine', 'Detail', 'MachineNumber', 'Status', 'Receiver', 'Manage'];
+  const csvRows = [headers.join(',')];
+
+  data.forEach(item => {
+    const row = [
+      `"${item.id}"`,
+      `"${item.time}"`,
+      `"${item.date}"`,
+      `"${item.name}"`,
+      `"${item.department}"`,
+      `"${item.category}"`,
+      `"${item.machine}"`,
+      `"${item.detail.replace(/"/g, '""')}"`,
+      `"${item.number}"`,
+      `"${item.status || 'รอดำเนินการ'}"`,
+      `"${item.receiver || ''}"`,
+      `""`
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const bom = "\uFEFF"; // BOM สำหรับ UTF-8
+  const csvContent = bom + csvRows.join('\n');
+
+  if ('showSaveFilePicker' in window) {
+    try {
+      const options = {
+        suggestedName: 'work_requests.csv',
+        types: [{ description: 'CSV Files', accept: {'text/csv': ['.csv']} }]
+      };
+      const handle = await window.showSaveFilePicker(options);
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
+      await writable.close();
+    } catch (err) {
+      console.error('Save cancelled or failed:', err);
+    }
+  } else {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'work_requests.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+});
+
+// โหลดข้อมูลเมื่อเปิดเพจ
+$(document).ready(function() {
+  loadTableData();
+});
+</script>
+</body>
+</html>
